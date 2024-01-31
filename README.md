@@ -1,4 +1,4 @@
-### **Model Predictive and Imitation Learning Control for Efficient, Sustainable, and Safe Operations in Wastewater Stations Using Real-Time Edge Controllers Course. **
+## **Model Predictive and Imitation Learning Control for Efficient, Sustainable, and Safe Operations in Wastewater Stations Using Real-Time Edge Controllers Course. **
                                                        
 <p style="margin-top: 100px; margin-bottom: 20px;"></p>
 
