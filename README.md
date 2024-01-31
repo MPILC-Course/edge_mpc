@@ -3,7 +3,7 @@
 <p style="margin-top: 100px; margin-bottom: 20px;"></p>
 
 <p align="center">
-<img src="imgs/dtu_logo.png" width="100"/>
+<img src="img/dtu_logo.png" width="100"/>
 </p>
 <p align="center">
  <b>
