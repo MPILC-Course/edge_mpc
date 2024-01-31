@@ -1,9 +1,9 @@
-##  **Industrial IoT for Digitalization of Electronic Assets** Course.
+### **Model Predictive and Imitation Learning Control for Efficient, Sustainable, and Safe Operations in Wastewater Stations Using Real-Time Edge Controllers Course. **
                                                        
 <p style="margin-top: 100px; margin-bottom: 20px;"></p>
 
 <p align="center">
-<img src="Module 0/imgs/dtu_logo.png" width="100"/>
+<img src="imgs/dtu_logo.png" width="100"/>
 </p>
 <p align="center">
  <b>
