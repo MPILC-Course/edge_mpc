@@ -19,16 +19,20 @@ def plot_features_and_target(df, features):
     return fig
 
 def histogram(y, bins):
-    fig, axs = plt.subplots(1, 1, figsize=(4, 4))
+    fig, axs = plt.subplots(1, 1, figsize=(5, 5))
     # Histogram of residuals
-    axs.hist(y, bins=bins, color='skyblue', edgecolor='black')
-    axs.set_title('Histogram of execution time')
-    axs.set_xlabel('execution time')
-    axs.set_ylabel('Frequency')
-    axs.grid(True, which='both', linestyle='--', linewidth=0.5)
+    axs.hist(y, bins=bins, color='black', edgecolor='gray')
+    axs.set_xlabel(r'$t_{wall}$ [s]')
+    axs.set_ylabel('Samples')
+    axs.set_yscale('log')
+    axs.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
 
     # Adjust layout for better presentation
     plt.tight_layout()
+    plt.savefig('twall.eps', format='eps', transparent=True)
+    
     plt.close()
+    
+
 
     return fig

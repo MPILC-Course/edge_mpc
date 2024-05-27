@@ -28,9 +28,9 @@ def system_dynamics(w,Qout,Qin_est,P,E,h,Ts):
 
     E_next = A_power @ ca.vcat([E[:,-1],E[:,-2]]) + B_power @ w[:,-1] + C_power
 
-    P_next = B1_pressure @ Qout[-1] + B2_pressure @ Qout[-1]**2 + C_pressure
+    P_next = B1_pressure * Qout[0,-1] + B2_pressure * Qout[0,-1]**2 + C_pressure
     
-    h_next = h[-1] + Ts/3600*(Qin_est[-1]-Qout[-1])/A
+    h_next = h[0,-1] + Ts/3600*(Qin_est[0,-1]-Qout[0,-1])/A
 
     return Qout_next,E_next,P_next,h_next
 

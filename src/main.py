@@ -2,8 +2,9 @@ import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd 
-from src.setup_OptiProblem import setup_OptiProblem
-plt.style.use('ggplot')
+from setup_OptiProblem import setup_OptiProblem
+
+# plt.style.use('ggplot')
 plt.close("all")
 
 df = pd.read_parquet("data/sym_data/sym_df_5s_res_withPower.parquet")
@@ -51,7 +52,7 @@ h_ref_hist = h_ref_k[0:zs] # history of reference for plotting, href_k cant be p
 
 
 # =================== Measurement Updates and appending ===================
-for k in range(len(df)-200):
+for k in range(5):
     print(f"iteration : {k}")
 
     # Actual Solving
