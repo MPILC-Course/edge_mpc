@@ -33,6 +33,4 @@ def histogram(y, bins):
     
     plt.close()
     
-
-
     return fig

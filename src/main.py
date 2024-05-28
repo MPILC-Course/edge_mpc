@@ -6,8 +6,7 @@ import time
 import os
 
 df = pd.read_parquet("/home/pi/mpc/edge_mpc/data/sym_data/sym_df_5s_res_withPower.parquet")
-# df = df["2023-05-23 20:00:00":"2023-05-24 08:00:00"] # Spike
-df = df["2023-05-27 15:00:00":"2023-06-27 20:00:00"]
+# df = df["2023-05-27 15:00:00":"2023-06-27 20:00:00"]
 timestamps = df.index.tolist()
 
 zs = 2
@@ -29,18 +28,12 @@ Qin_hist = df["inflow"][0:zs].values
 
 
 # construct pump trigger signal based on external schedule
-# trigger_k = np.zeros((3,len(df)))
-# trigger_k[0,:4000] = 1
-# trigger_k[1,4200:3000] = 1
-# trigger_k[2,2600:] = 1
-
 trigger_k = [1,0,0]
 p = 0
 
 Qin_k = df["inflow"].values
 
 # building some trajectory for height reference
-# h_ref_k = np.hstack([[150,150,150],np.arange(150, 145, (149-150)/(N+zs)), np.ones(10000)*145]) 
 h_ref_k = np.ones(len(df))*120
 h_ref_hist = h_ref_k[0:zs] # history of reference for plotting, href_k cant be plotted because time horizon 
 
@@ -51,10 +44,11 @@ for k in range(K): #len(df)-150
     
     # Actual Solving
 
-    sol_start = time.time()
+    sol_start = time.time() # Timing
     sol_w,sol_Qout,sol_h,sol_E,sol_P,sol_effi = mpc_controller(Qin_k[k+zs:k+zs+N+zs],Qout_hist[-zs:],h_hist[-zs:],w_hist[:,-zs:],E_hist[:,-zs:],P_hist[-zs:],trigger_k,h_ref_k[k:N+k+zs])
     sol_end = time.time()
-   
+
+    # Logging   
     time_hist = np.hstack([time_hist, timestamps[k+zs]])
     timings.append(sol_end-sol_start)
 
@@ -80,6 +74,8 @@ for k in range(K): #len(df)-150
     
     Qin_hist = np.hstack([Qin_hist, Qin_k[k+zs]]) 
 
+    # Alternating Pump Schedule, 4000 samples on (6h)
+
     if ((k+100)%4000 == 0):
         p = p+1
         if (p>2): 
@@ -93,6 +89,7 @@ for k in range(K): #len(df)-150
             trigger_k[p-1] = 0
 
 
+    # Save subresults every 5000 steps
     if (k%5000 == 0):
         results = pd.DataFrame(list(zip(w_hist[0,:].reshape(-1), w_hist[1,:].reshape(-1), w_hist[2,:].reshape(-1), Qout_hist,P_hist,h_hist,Qin_hist,E_hist[0,:].reshape(-1), E_hist[1,:].reshape(-1), E_hist[2,:].reshape(-1))), index= time_hist,columns=df.columns)
         results["t_wall"] = timings
