@@ -29,7 +29,7 @@ def histogram(y, bins):
 
     # Adjust layout for better presentation
     plt.tight_layout()
-    plt.savefig('twall.eps', format='eps', transparent=True)
+    plt.savefig('img/twall.eps', format='eps', transparent=True)
     
     plt.close()
     
