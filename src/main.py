@@ -1,16 +1,14 @@
 import casadi as ca
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd 
 from setup_OptiProblem import setup_OptiProblem
+import time
+import os
 
-# plt.style.use('ggplot')
-plt.close("all")
-
-df = pd.read_parquet("data/sym_data/sym_df_5s_res_withPower.parquet")
+df = pd.read_parquet("/home/pi/mpc/edge_mpc/data/sym_data/sym_df_5s_res_withPower.parquet")
 # df = df["2023-05-23 20:00:00":"2023-05-24 08:00:00"] # Spike
-df = df["2023-05-23 20:00:00":"2023-06-13 08:00:00"]
-
+df = df["2023-05-27 15:00:00":"2023-06-27 20:00:00"]
+timestamps = df.index.tolist()
 
 zs = 2
 N = 24
@@ -19,6 +17,8 @@ mpc_controller = setup_OptiProblem(N,zs,Ts)
 
 # =================== History Initialization ===================
 # ==== Last element[-1]: latest; first[0]: oldest
+time_hist = timestamps[0:zs]
+timings =  [0]*zs
 h_hist = df["level"][0:zs].values
 w_hist = np.vstack([df["pump1_speed"][0:zs].values,df["pump3_speed"][0:zs].values,df["pump4_speed"][0:zs].values]).reshape(3,-1)
 Qout_hist = df["outflow"][0:zs].values
@@ -37,12 +37,6 @@ Qin_hist = df["inflow"][0:zs].values
 trigger_k = [1,0,0]
 p = 0
 
-# sine load:
-# cycles = 2 # how many sine cycles
-# resolution = 2100 # how many datapoints to generate
-# length = np.pi * 2 * cycles
-# Qin_k = np.sin(np.arange(0, length, length / resolution))*1200+1200
-
 Qin_k = df["inflow"].values
 
 # building some trajectory for height reference
@@ -52,12 +46,18 @@ h_ref_hist = h_ref_k[0:zs] # history of reference for plotting, href_k cant be p
 
 
 # =================== Measurement Updates and appending ===================
-for k in range(5):
-    print(f"iteration : {k}")
-
+K = len(df)-150
+for k in range(K): #len(df)-150
+    
     # Actual Solving
+
+    sol_start = time.time()
     sol_w,sol_Qout,sol_h,sol_E,sol_P,sol_effi = mpc_controller(Qin_k[k+zs:k+zs+N+zs],Qout_hist[-zs:],h_hist[-zs:],w_hist[:,-zs:],E_hist[:,-zs:],P_hist[-zs:],trigger_k,h_ref_k[k:N+k+zs])
-        
+    sol_end = time.time()
+   
+    time_hist = np.hstack([time_hist, timestamps[k+zs]])
+    timings.append(sol_end-sol_start)
+
     h_meas_k = sol_h[zs].full().reshape(1)
     h_hist = np.hstack([h_hist, h_meas_k])
 
@@ -91,70 +91,22 @@ for k in range(5):
             trigger_k[2] = 0
         else:
             trigger_k[p-1] = 0
+
+
+    if (k%5000 == 0):
+        results = pd.DataFrame(list(zip(w_hist[0,:].reshape(-1), w_hist[1,:].reshape(-1), w_hist[2,:].reshape(-1), Qout_hist,P_hist,h_hist,Qin_hist,E_hist[0,:].reshape(-1), E_hist[1,:].reshape(-1), E_hist[2,:].reshape(-1))), index= time_hist,columns=df.columns)
+        results["t_wall"] = timings
+        results.to_parquet(f'/home/pi/mpc/edge_mpc/data/results/mpc_subresults_{k}.parquet')
+        if os.path.exists(f'/home/pi/mpc/edge_mpc/data/results/mpc_subresults_{k-5000}.parquet'):
+            os.remove(f'/home/pi/mpc/edge_mpc/data/results/mpc_subresults_{k-5000}.parquet')
+        
+    print(f"iteration : {k+1}/{K},    t_wall: {timings[k+zs]}")
+    
            
 
-    
+results = pd.DataFrame(list(zip(w_hist[0:,:].reshape(-1), w_hist[1:,:].reshape(-1), w_hist[2:,:].reshape(-1), Qout_hist,P_hist,h_hist,Qin_hist,E_hist[0:,:].reshape(-1), E_hist[1:,:].reshape(-1), E_hist[2:,:].reshape(-1))), index= time_hist,columns=df.columns)
+results["t_wall"] = timings
+results.to_parquet('/home/pi/mpc/edge_mpc/data/results/mpc_results.parquet')
 
-
-time = np.arange((-h_hist.shape[0]+2)*Ts, (N+1)*Ts,Ts)
-fig, axs = plt.subplots(2, 3, figsize=(10, 5), sharex=True, sharey=False)
-
-# Plot 1 - Speed [RPM]
-axs[0, 0].step(time,np.hstack([w_hist[0, :],sol_w[0,zs+1:].full().reshape(-1)]), "r", label='P. 1',where='post')
-axs[0, 0].step(time,np.hstack([w_hist[1, :],sol_w[1,zs+1:].full().reshape(-1)]), "g", label='P. 3',where='post')
-axs[0, 0].step(time,np.hstack([w_hist[2, :],sol_w[2,zs+1:].full().reshape(-1)]), "b", label='P. 4',where='post')
-axs[0, 0].set_ylim([0, 2000])
-axs[0, 0].set_ylabel('Speed [RPM]')
-axs[0, 0].grid(linestyle=':', linewidth='0.5', color='gray')
-axs[0, 0].legend(loc='upper center', columnspacing=1, ncol=3, frameon=True, facecolor='lightgray', edgecolor='black')
-
-
-# Plot 2 - Power [kW]
-axs[0, 1].step(time,np.hstack([E_hist[0, :],sol_E[0,zs+1:].full().reshape(-1)]), "r", label='P. 1',where='post')
-axs[0, 1].step(time,df["pump1_power_est"][:k+N+zs].values, "r--", label='P. 1*',where='post')
-axs[0, 1].step(time,np.hstack([E_hist[1, :],sol_E[1,zs+1:].full().reshape(-1)]), "g", label='P. 3',where='post')
-axs[0, 1].step(time,df["pump3_power_est"][:k+N+zs].values, "g--", label='P. 3*',where='post')
-axs[0, 1].step(time,np.hstack([E_hist[2, :],sol_E[2,zs+1:].full().reshape(-1)]), "b", label='P. 4',where='post')
-axs[0, 1].step(time,df["pump4_power_est"][:k+N+zs].values, "b--", label='P. 4*',where='post')
-axs[0, 1].set_ylabel('Power [kW]')
-axs[0, 1].grid(linestyle=':', linewidth='0.5', color='gray')
-axs[0, 1].set_ylim([0, 100])
-axs[0, 1].legend(loc='upper center', columnspacing=0.2, ncol=3, frameon=True, facecolor='lightgray', edgecolor='black')
-
-# Plot 3 - Height
-axs[0, 2].step(time,np.hstack([h_hist,sol_h[zs+1:].full().reshape(-1)]), "r", label='Height',where='post')
-axs[0, 2].step(time,h_ref_k[:h_hist.shape[0]+N-1], "k--", label='Reference',where='post')
-axs[0, 2].set_ylabel("Height [cm]")
-axs[0, 2].grid(linestyle=':', linewidth='0.5', color='gray')
-# axs[0, 2].set_ylim([0, 250])
-axs[0, 2].legend(loc='upper center', columnspacing=1, ncol=3, frameon=True, facecolor='lightgray', edgecolor='black')
-
-# Plot 4 - Volumetric Flow Rate
-axs[1, 0].step(time,np.hstack([Qout_hist,sol_Qout[zs+1:].full().reshape(-1)]), label='Qout',where='post')
-axs[1, 0].step(time,np.hstack([Qin_hist, np.ones(sol_Qout[zs+1:].shape[0])*Qin_hist[-1]]), label='Qin',where='post')
-axs[1, 0].set_ylabel("Vol. Flow Rate [m^3/h]")
-axs[1, 0].set_xlabel("Time [s]")
-axs[1, 0].grid(linestyle=':', linewidth='0.5', color='gray')
-# axs[1, 0].set_ylim([0, 800])
-axs[1, 0].legend(loc='upper center', columnspacing=1, ncol=3, frameon=True, facecolor='lightgray', edgecolor='black')
-
-# Plot 5 - Pressure
-axs[1, 1].step(time,np.hstack([P_hist,sol_P[zs+1:].full().reshape(-1)]), label='Pressure',where='post')
-axs[1, 1].set_ylabel("Pressure [MPa]")
-axs[1, 1].set_xlabel("Time [s]")
-axs[1, 1].grid(linestyle=':', linewidth='0.5', color='gray')
-
-# Plot 6 - effi
-axs[1, 2].step(time,np.hstack([effi_hist,sol_effi[zs+1:].full().reshape(-1)]), label='Qout',where='post')
-axs[1, 2].grid(linestyle=':', linewidth='0.5', color='gray')
-axs[1, 2].set_ylabel("Efficiency [kWh/m^3]")
-axs[1, 2].set_xlabel("Time [s]")
-
-
-plt.tight_layout()
-plt.show()
-
-
-np.sum(E_hist)/np.sum(df[["pump1_power_est","pump3_power_est","pump4_power_est"]][:k+zs+1].values)
 
 

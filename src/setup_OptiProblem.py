@@ -43,7 +43,7 @@ def setup_OptiProblem(N,zs,Ts)->ca.Function:
     # Solver options
     p_opts = {
         "expand":True,
-        "print_time": 1,
+        "print_time": 0,
         "verbose": False,
         "error_on_fail": False,
     }
@@ -120,12 +120,6 @@ def setup_OptiProblem(N,zs,Ts)->ca.Function:
     # ARX model constraints
     for t in range(zs, N+zs):
 
-        # # Qout_next,E_next,P_next,h_next = system_dynamics(w[:,t-zs:],Qout[t-zs:],Qin_est[t-zs:],P[t-zs:],E[:,t-zs:],h[t-zs:],Ts)
-        # Qout_next,E_next,P_next,h_next = system_dynamics(w,Qout,Qin_est,P,E,h,Ts)
-        # opti.subject_to(Qout[t] == Qout_next)
-        # opti.subject_to(E[:,t] == E_next)
-        # opti.subject_to(P[t] == P_next)
-        # opti.subject_to(h[t] == h_next)
         opti.subject_to(Qout[t] ==ca.if_else( 
                                     w[0,t-1] <= 600,
                                     3.2216 + 0.08378681 * w[0,t-1],  # First segment equation
